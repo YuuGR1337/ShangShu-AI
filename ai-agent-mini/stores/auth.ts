@@ -109,6 +109,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * 微信小程序一键登录：uni.login 拿 code → 后端换 openid 签发令牌。
+   * 仅微信小程序端可用（其他端调用抛错）。
+   */
+  async function wechatLogin(): Promise<UserInfo> {
+    // #ifdef MP-WEIXIN
+    loading.value = true
+    try {
+      const code = await new Promise<string>((resolve, reject) => {
+        uni.login({
+          provider: 'weixin',
+          success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到登录凭证'))),
+          fail: (err) => reject(new Error(err.errMsg || '微信登录失败')),
+        })
+      })
+      const { wechatMiniLogin } = await import('@/api/auth')
+      const resp: LoginResponse = await wechatMiniLogin(code)
+      setTokens(resp.accessToken, resp.refreshToken, resp.csrfToken)
+      const info = await apiGetCurrentUser()
+      user.value = info
+      return info
+    } finally {
+      loading.value = false
+    }
+    // #endif
+    // #ifndef MP-WEIXIN
+    throw new Error('微信一键登录仅支持微信小程序端')
+    // #endif
+  }
+
   /** 刷新访问令牌 */
   async function refresh(): Promise<boolean> {
     if (!refreshToken.value) return false
@@ -186,6 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens,
     login,
     register,
+    wechatLogin,
     refresh,
     logout,
     fetchCurrentUser,

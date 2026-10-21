@@ -29,6 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *
  * <ul>
  *   <li>{@code /api/v1/auth/register|login|refresh|password/**}
+ *   <li>{@code /api/v1/auth/oauth/**}、{@code /api/v1/auth/wechat-mini/**}
  *   <li>{@code /actuator/**}
  *   <li>{@code /swagger-ui/**}、{@code /v3/api-docs/**}
  *   <li>{@code /error}
@@ -113,6 +114,7 @@ public class SecurityConfig {
                         "/api/v1/auth/refresh",
                         "/api/v1/auth/password/**",
                         "/api/v1/auth/oauth/**",
+                        "/api/v1/auth/wechat-mini/**",
                         "/actuator/**", // 为了检查服务健康
                         "/swagger-ui/**",
                         "/swagger-ui.html",

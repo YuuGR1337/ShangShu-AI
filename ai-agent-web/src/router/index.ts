@@ -76,6 +76,12 @@ const router = createRouter({
           meta: { title: '数据分析' },
         },
         {
+          path: 'course',
+          name: 'course',
+          component: () => import('@/views/course/CourseView.vue'),
+          meta: { title: '课程问答' },
+        },
+        {
           path: 'chat-search',
           name: 'chat-search',
           component: () => import('@/views/chat/ChatSearchView.vue'),

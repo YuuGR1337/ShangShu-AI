@@ -35,6 +35,23 @@ const email = ref('')
 /** 错误提示 */
 const errorMsg = ref('')
 
+/** 是否展示微信一键登录（仅微信小程序端） */
+const showWechatLogin = ref(false)
+// #ifdef MP-WEIXIN
+showWechatLogin.value = true
+// #endif
+
+/** 微信一键登录 */
+async function handleWechatLogin() {
+  errorMsg.value = ''
+  try {
+    await authStore.wechatLogin()
+    emit('success')
+  } catch (err: unknown) {
+    errorMsg.value = err instanceof Error ? err.message : '微信登录失败，请重试'
+  }
+}
+
 /** 表单校验 */
 function validate(): boolean {
   errorMsg.value = ''
@@ -186,6 +203,23 @@ function toggleMode() {
       {{ isLogin ? '登录' : '注册' }}
     </button>
 
+    <!-- 微信一键登录（仅微信小程序端、登录模式展示） -->
+    <template v-if="isLogin && showWechatLogin">
+      <view class="auth-form__divider">
+        <view class="auth-form__divider-line" />
+        <text class="auth-form__divider-text">或</text>
+        <view class="auth-form__divider-line" />
+      </view>
+      <button
+        class="auth-form__wechat"
+        :loading="authStore.loading"
+        :disabled="authStore.loading"
+        @tap="handleWechatLogin"
+      >
+        微信一键登录
+      </button>
+    </template>
+
     <!-- 切换模式 -->
     <view class="auth-form__toggle">
       <text class="auth-form__toggle-text" @tap="toggleMode">
@@ -272,6 +306,38 @@ function toggleMode() {
   line-height: 88rpx;
   font-size: $font-size-md;
   margin-bottom: $space-4;
+}
+
+.auth-form__divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: $space-4;
+}
+
+.auth-form__divider-line {
+  flex: 1;
+  height: 2rpx;
+  background-color: $border-default;
+}
+
+.auth-form__divider-text {
+  padding: 0 $space-3;
+  font-size: $font-size-sm;
+  color: $text-tertiary;
+}
+
+.auth-form__wechat {
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: $font-size-md;
+  color: #ffffff;
+  background-color: #07c160;
+  border-radius: $radius-lg;
+  margin-bottom: $space-4;
+
+  &:active {
+    opacity: 0.85;
+  }
 }
 
 .auth-form__toggle {

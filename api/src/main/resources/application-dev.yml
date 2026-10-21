@@ -187,6 +187,7 @@ ai:
         - /api/v1/auth/login
         - /api/v1/auth/password/forgot
         - /api/v1/auth/password/reset
+        - /api/v1/auth/wechat-mini/**
     password-reset:
       token-ttl: PT30M
       reset-url: http://localhost:5173/reset-password?token=
@@ -201,10 +202,28 @@ ai:
         token-url: https://gitee.com/oauth/token
         user-info-url: https://gitee.com/api/v5/user
         redirect-uri: ${GITEE_REDIRECT_URI:http://localhost:8080/api/v1/auth/oauth/gitee/callback}
+      wechat-mini:
+        enabled: ${WECHAT_MINI_OAUTH_ENABLED:false}
+        app-id: ${WECHAT_MINI_APP_ID:}
+        app-secret: ${WECHAT_MINI_APP_SECRET:}
+        jscode2session-url: https://api.weixin.qq.com/sns/jscode2session
     # 业务侧发件人配置（AuthProperties 前缀为 ai.auth，此处必须位于 auth 之下）
     mail:
       from: ${AI_MAIL_FROM:noreply@ai-agent-platform.com}
       from-name: AI 开放平台
+  # ====================================================================
+  # 课程知识库问答（add-course-kb）：课程场景意图/知识库/模型配置
+  # ====================================================================
+  course:
+    # 课程知识库 ID（问答检索范围；留空表示检索全部知识库，生产环境务必指定课程库 kbId 避免串答）
+    kb-id: ${COURSE_KB_ID:}
+    # 课程问答默认模型 ID
+    model-id: ${COURSE_MODEL_ID:deepseek-chat}
+    # 四路召回 topK
+    top-k: 5
+    # 课程意图名（需与 V20261015__add_course_intents.sql 种子数据一致）
+    knowledge-intent: course_knowledge
+    exercise-intent: course_exercise
   web-search:
     enabled: true
     provider: tavily

@@ -124,6 +124,9 @@ public class AuthProperties {
 
     /** Gitee 平台配置 */
     private Gitee gitee = new Gitee();
+
+    /** 微信小程序平台配置 */
+    private WechatMini wechatMini = new WechatMini();
   }
 
   /** Gitee OAuth2 配置 */
@@ -150,5 +153,22 @@ public class AuthProperties {
 
     /** 后端回调地址（需与 Gitee 应用登记的 redirect_uri 完全一致） */
     private String redirectUri = "http://localhost:8080/api/v1/auth/oauth/gitee/callback";
+  }
+
+  /** 微信小程序登录配置 */
+  @Setter
+  @Getter
+  public static class WechatMini {
+    /** 是否启用（未配置 appId/appSecret 时应保持 false） */
+    private boolean enabled = false;
+
+    /** 小程序 AppID */
+    private String appId = "";
+
+    /** 小程序 AppSecret */
+    private String appSecret = "";
+
+    /** 登录凭证校验地址（code 换 openid/session_key） */
+    private String jscode2sessionUrl = "https://api.weixin.qq.com/sns/jscode2session";
   }
 }

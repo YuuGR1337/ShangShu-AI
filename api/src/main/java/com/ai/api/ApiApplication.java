@@ -23,7 +23,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @author bootstrap-project
  */
 @SpringBootApplication
-@MapperScan("com.ai.api.**.mapper")
+@MapperScan({"com.ai.api.**.mapper", "com.ai.api.agent.pause"})
 @EnableAsync
 @EnableScheduling
 @EnableConfigurationProperties({AuthProperties.class, CacheProperties.class})

@@ -99,28 +99,68 @@ async function handleCreate() {
   }
 }
 
+/** 支持的文档扩展名 */
+const DOC_EXTENSIONS = ['txt', 'md', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv']
+
+/**
+ * 选择并上传文档（多端兼容）：
+ * - 微信小程序：uni.chooseMessageFile（从微信聊天记录选文件，平台限制）
+ * - H5 / App：uni.chooseFile（从本地文件系统选）
+ */
 function chooseAndUpload() {
   const kbId = activeKb.value
   if (kbId == null) {
     uni.showToast({ title: '请先展开一个知识库', icon: 'none' })
     return
   }
+
+  // #ifdef MP-WEIXIN
   uni.chooseMessageFile({
     count: 1,
-    extension: ['txt', 'md', 'pdf', 'docx'],
-    success: async (res) => {
+    type: 'file',
+    extension: DOC_EXTENSIONS,
+    success: (res) => {
       const file = res.tempFiles[0]
-      uni.showLoading({ title: '上传中...', mask: true })
-      try {
-        await uploadDocument(kbId, file.path)
-        uni.hideLoading()
-        uni.showToast({ title: '上传成功', icon: 'success' })
-        await loadDocs(kbId)
-      } catch {
-        uni.hideLoading()
-      }
+      if (file?.path) doUpload(kbId, file.path)
+    },
+    fail: (err) => {
+      // 用户主动取消不提示
+      if (err.errMsg && err.errMsg.includes('cancel')) return
+      uni.showModal({
+        title: '选择文件失败',
+        content:
+          '微信小程序需从聊天记录选择文件：请先把文档发送到微信（如"文件传输助手"），再回到这里选择。',
+        showCancel: false,
+      })
     },
   })
+  // #endif
+
+  // #ifndef MP-WEIXIN
+  uni.chooseFile({
+    count: 1,
+    extension: DOC_EXTENSIONS.map((e) => '.' + e),
+    success: (res) => {
+      // tempFiles 为联合类型（可能是 File 或数组），改用 tempFilePaths 取路径字符串，跨端安全
+      const path = Array.isArray(res.tempFilePaths) ? res.tempFilePaths[0] : res.tempFilePaths
+      if (path) doUpload(kbId, path)
+    },
+  })
+  // #endif
+}
+
+/** 执行上传（统一入口：加载态 + 结果提示 + 刷新文档列表） */
+async function doUpload(kbId: number, filePath: string) {
+  uni.showLoading({ title: '上传中...', mask: true })
+  try {
+    await uploadDocument(kbId, filePath)
+    uni.hideLoading()
+    uni.showToast({ title: '上传成功', icon: 'success' })
+    await loadDocs(kbId)
+    await loadBases()
+  } catch {
+    uni.hideLoading()
+  }
 }
 
 function handleDelete(doc: KnowledgeDocumentResp) {

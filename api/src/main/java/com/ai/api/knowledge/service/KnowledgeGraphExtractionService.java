@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -68,6 +69,10 @@ public class KnowledgeGraphExtractionService {
   /** 单分片参与抽取的字符上限。 */
   @Value("${rag.knowledge-graph.extract-chunk-chars:1200}")
   private int extractChunkChars;
+
+  /** 自定义抽取 prompt 模板（非空时替代默认业务模板；课程场景用于约束实体=知识点/习题、关系=前置/包含/考察）。 */
+  @Value("${rag.knowledge-graph.prompt-template:}")
+  private String promptTemplate;
 
   public KnowledgeGraphExtractionService(
       @Qualifier("deepSeekChatClient") ChatClient deepSeekChatClient,
@@ -319,6 +324,11 @@ public class KnowledgeGraphExtractionService {
         content = content.substring(0, extractChunkChars);
       }
       sb.append("[分片").append(i + 1).append("]\n").append(content).append("\n\n");
+    }
+    // 配置了自定义 prompt 模板（如课程场景：实体=知识点/习题、关系=前置/包含/考察）时优先使用；
+    // 模板须包含 %s 占位符用于注入分片文本。
+    if (StringUtils.hasText(promptTemplate)) {
+      return String.format(Locale.ROOT, promptTemplate, sb);
     }
     return String.format(
         Locale.ROOT,

@@ -25,6 +25,15 @@ export function login(data: LoginReq) {
 }
 
 /**
+ * 微信小程序一键登录
+ * POST /api/v1/auth/wechat-mini/code
+ * 入参为 uni.login 拿到的临时登录凭证 code，后端换 openid 后签发令牌
+ */
+export function wechatMiniLogin(code: string) {
+  return post<LoginResponse>('/auth/wechat-mini/code', { code })
+}
+
+/**
  * 刷新令牌
  * POST /api/v1/auth/refresh
  */

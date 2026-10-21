@@ -139,6 +139,7 @@ const menuGroups = shallowRef<MenuGroup[]>([
     icon: markRaw(ChatLineSquare),
     children: [
       { index: '/chat', title: '对话聊天', icon: markRaw(ChatLineSquare) },
+      { index: '/course', title: '课程问答', icon: markRaw(ChatDotRound) },
       { index: '/model-test', title: '模型测试', icon: markRaw(ChatDotRound) },
       { index: '/agent', title: '任务 Agent', icon: markRaw(Cpu) },
       { index: '/customer-service', title: '智能客服', icon: markRaw(ChatDotRound) },

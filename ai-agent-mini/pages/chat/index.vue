@@ -111,6 +111,11 @@ function handleSelectSession(sessionId: number) {
   })
 }
 
+/** 进入课程问答页 */
+function openCourse() {
+  uni.navigateTo({ url: '/pages/course/index' })
+}
+
 /** 删除会话 */
 async function handleDeleteSession(sessionId: number) {
   await chatStore.removeSession(sessionId)
@@ -264,6 +269,9 @@ function escapeHtml(text: string): string {
     <NavBar title="AI 助手">
       <template #right>
         <view class="chat-list-page__actions">
+          <view class="chat-list-page__course" @tap="openCourse">
+            <text class="chat-list-page__course-text">课程问答</text>
+          </view>
           <view class="chat-list-page__search" @tap="openSearch">
             <text class="chat-list-page__search-icon">&#x1F50D;</text>
           </view>
@@ -498,6 +506,26 @@ function escapeHtml(text: string): string {
   display: flex;
   align-items: center;
   gap: $space-2;
+}
+
+.chat-list-page__course {
+  height: 64rpx;
+  padding: 0 $space-3;
+  border-radius: $radius-full;
+  background-color: $color-primary-50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.chat-list-page__course-text {
+  font-size: $font-size-xs;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
 }
 
 .chat-list-page__search {

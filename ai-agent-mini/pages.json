@@ -55,6 +55,13 @@
         "navigationBarTitleText": "数据分析",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/course/index",
+      "style": {
+        "navigationBarTitleText": "课程问答",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "tabBar": {
