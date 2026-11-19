@@ -135,6 +135,26 @@ public class KnowledgeController {
     return Result.success(docs.stream().map(Document::getText).toList());
   }
 
+  /**
+   * 检索测试：逐步展开完整 RAG 链路（QueryRewrite → 向量/关键词双路召回 → RRF 融合 → Rerank）。
+   *
+   * <p>POST /api/v1/knowledge/{kbId}/retrieve-test
+   *
+   * <p>不走缓存，每步带耗时，用于前端"检索测试"页面可视化展示。
+   */
+  @PostMapping("/{kbId}/retrieve-test")
+  public Result<Map<String, Object>> retrieveTest(
+      @PathVariable Long kbId, @RequestBody RetrieveTestReq req) {
+    Map<String, Object> trace = ragRetrievalService.retrieveWithTrace(kbId, req.query, req.topK);
+    return Result.success(trace);
+  }
+
+  @Data
+  static class RetrieveTestReq {
+    String query;
+    int topK = 5;
+  }
+
   // ============ 文档管理（P0-5） ============
 
   /**

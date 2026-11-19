@@ -403,4 +403,140 @@ public class RagRetrievalService {
     }
     return texts;
   }
+
+  /**
+   * 检索测试：逐步展开返回完整 RAG 链路。
+   *
+   * <p>用于调试/可视化展示，不走缓存，每步记录耗时。
+   *
+   * @param kbId 知识库 ID（必填，用于过滤）
+   * @param rawQuery 用户原始问题
+   * @param topK 最终文档数量
+   * @return 含 rewrittenQueries / vectorRecall / keywordRecall / rrfMerged / reranked /
+   *     finalDocuments 每步耗时和结果
+   */
+  public Map<String, Object> retrieveWithTrace(Long kbId, String rawQuery, int topK) {
+    Map<String, Object> trace = new LinkedHashMap<>();
+    trace.put("originalQuery", rawQuery);
+
+    // 1. QueryRewrite
+    long t0 = System.currentTimeMillis();
+    List<String> queries = queryRewriteService.rewrite(rawQuery);
+    trace.put("rewrittenQueries", queries);
+    trace.put("rewriteTookMs", System.currentTimeMillis() - t0);
+
+    // 2. 按当前配置的检索方法，逐路召回（单 query 原始问题，不走多 query 展开以简化 trace）
+    RetrievalFilter filter = RetrievalFilter.of(kbId, null, null);
+    List<String> methods = parseRetrievalMethods();
+
+    // 2a. 向量路
+    long t1 = System.currentTimeMillis();
+    List<Document> vectorHits = retrieveSemantic(rawQuery, filter);
+    trace.put(
+        "vectorRecall",
+        vectorHits.stream()
+            .limit(topKPerQuery)
+            .map(
+                d ->
+                    Map.of(
+                        "chunkId", d.getId(),
+                        "score", d.getMetadata().getOrDefault("score", 0.0),
+                        "text", truncateText(d.getText(), 200)))
+            .toList());
+    trace.put("vectorRecallTookMs", System.currentTimeMillis() - t1);
+
+    // 2b. 关键词路
+    long t2 = System.currentTimeMillis();
+    List<Document> kwHits = retrieveFulltext(rawQuery, filter);
+    trace.put(
+        "keywordRecall",
+        kwHits.stream()
+            .limit(topKPerQuery)
+            .map(
+                d ->
+                    Map.of(
+                        "chunkId", d.getId(),
+                        "score", d.getMetadata().getOrDefault("score", 0.0),
+                        "text", truncateText(d.getText(), 200)))
+            .toList());
+    trace.put("keywordRecallTookMs", System.currentTimeMillis() - t2);
+
+    // 3. RRF 融合（仅当前两路）
+    long t3 = System.currentTimeMillis();
+    Map<String, Document> docById = new LinkedHashMap<>();
+    Map<String, Double> rrfScore = new LinkedHashMap<>();
+    List<Document> allHits = new ArrayList<>();
+    allHits.addAll(vectorHits);
+    allHits.addAll(kwHits);
+    for (List<Document> lane : List.of(vectorHits, kwHits)) {
+      for (int i = 0; i < lane.size(); i++) {
+        Document doc = lane.get(i);
+        docById.putIfAbsent(doc.getId(), doc);
+        rrfScore.merge(doc.getId(), 1.0 / (rrfK + i + 1), Double::sum);
+      }
+    }
+    List<Map.Entry<String, Double>> sorted = new ArrayList<>(rrfScore.entrySet());
+    sorted.sort(Map.Entry.<String, Double>comparingByValue().reversed());
+    List<Map<String, Object>> rrfMerged =
+        sorted.stream()
+            .limit(topKPerQuery * 2)
+            .map(
+                e -> {
+                  Document d = docById.get(e.getKey());
+                  Map<String, Object> item = new LinkedHashMap<>();
+                  item.put("chunkId", d.getId());
+                  item.put("rrfScore", round(e.getValue(), 4));
+                  item.put("text", truncateText(d.getText(), 200));
+                  return item;
+                })
+            .toList();
+    trace.put("rrfMerged", rrfMerged);
+    trace.put("rrfMergedTookMs", System.currentTimeMillis() - t3);
+
+    // 4. Rerank 精排
+    long t4 = System.currentTimeMillis();
+    List<Document> reranked =
+        rerankService.rerank(rawQuery, new ArrayList<>(docById.values()), topK);
+    trace.put(
+        "reranked",
+        reranked.stream()
+            .map(
+                d -> {
+                  Map<String, Object> item = new LinkedHashMap<>();
+                  item.put("chunkId", d.getId());
+                  item.put("finalScore", d.getMetadata().getOrDefault("rerankScore", 0.0));
+                  item.put("text", truncateText(d.getText(), 200));
+                  return item;
+                })
+            .toList());
+    trace.put("rerankTookMs", System.currentTimeMillis() - t4);
+
+    // 5. 最终文档
+    trace.put(
+        "finalDocuments",
+        reranked.stream()
+            .map(
+                d -> {
+                  Map<String, Object> item = new LinkedHashMap<>();
+                  item.put("chunkId", d.getId());
+                  item.put("fullText", d.getText());
+                  item.put("metadata", d.getMetadata());
+                  return item;
+                })
+            .toList());
+
+    // 汇总
+    trace.put("totalTookMs", System.currentTimeMillis() - t0);
+    return trace;
+  }
+
+  private static String truncateText(String text, int maxLen) {
+    if (text == null) return "";
+    return text.length() <= maxLen ? text : text.substring(0, maxLen) + "...";
+  }
+
+  private static double round(double v, int scale) {
+    long factor = (long) Math.pow(10, scale);
+    return (double) (Math.round(v * factor)) / factor;
+  }
 }
