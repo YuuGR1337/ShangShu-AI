@@ -2,19 +2,25 @@ package com.ai.api.workflow.service;
 
 import com.ai.api.common.exception.BusinessException;
 import com.ai.api.common.exception.ErrorCode;
+import com.ai.api.common.result.PageResult;
 import com.ai.api.workflow.engine.WorkflowEngine;
 import com.ai.api.workflow.engine.WorkflowEvent;
 import com.ai.api.workflow.entity.WfNodeRun;
 import com.ai.api.workflow.entity.WfWorkflow;
 import com.ai.api.workflow.entity.WfWorkflowRun;
+import com.ai.api.workflow.entity.WfWorkflowVersion;
 import com.ai.api.workflow.mapper.WfNodeRunMapper;
 import com.ai.api.workflow.mapper.WfWorkflowMapper;
 import com.ai.api.workflow.mapper.WfWorkflowRunMapper;
+import com.ai.api.workflow.mapper.WfWorkflowVersionMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +38,7 @@ public class WfWorkflowService {
   private final WfWorkflowMapper workflowMapper;
   private final WfWorkflowRunMapper runMapper;
   private final WfNodeRunMapper nodeRunMapper;
+  private final WfWorkflowVersionMapper versionMapper;
   private final WorkflowEngine workflowEngine;
   private final ObjectMapper objectMapper;
 
@@ -67,11 +74,23 @@ public class WfWorkflowService {
     return wf;
   }
 
-  /** 发布工作流（版本号 +1）。 */
+  /**
+   * 发布工作流：当前草稿 graph 固化为不可变版本快照（version+1）。
+   *
+   * <p>快照写入 wf_workflow_version 后永不修改；后续编辑只更新主表草稿，历史版本保持可重复执行。
+   */
   @Transactional
-  public WfWorkflow publish(String workflowId) {
+  public WfWorkflow publish(String workflowId, Long publishedBy) {
     WfWorkflow wf = getByWorkflowId(workflowId);
-    wf.setVersion(wf.getVersion() + 1);
+    int newVersion = wf.getVersion() + 1;
+    WfWorkflowVersion snapshot = new WfWorkflowVersion();
+    snapshot.setWorkflowId(workflowId);
+    snapshot.setVersion(newVersion);
+    snapshot.setGraph(wf.getGraph());
+    snapshot.setPublishedBy(publishedBy);
+    snapshot.setPublishedAt(LocalDateTime.now());
+    versionMapper.insert(snapshot);
+    wf.setVersion(newVersion);
     wf.setPublished(1);
     workflowMapper.updateById(wf);
     return wf;
@@ -127,31 +146,47 @@ public class WfWorkflowService {
 
   // ============ 执行 ============
 
-  /** 运行工作流（同步返回结果 + 通过 SseEmitter 推送事件）。 */
+  /** 运行工作流（同步返回结果；sseEmitter 非空时推送事件，为 null 时仅落执行记录——AI 应用入口无 SSE 场景）。 */
   public WfWorkflowRun run(String workflowId, Map<String, Object> inputs, SseEmitter sseEmitter) {
     WfWorkflow wf = getByWorkflowId(workflowId);
+    // 优先执行最新发布快照：已发布内容不被进行中的草稿编辑污染；从未发布过则执行草稿
+    WfWorkflowVersion snapshot = latestPublishedVersion(workflowId);
+    String graph = snapshot != null ? snapshot.getGraph() : wf.getGraph();
+    int runVersion = snapshot != null ? snapshot.getVersion() : wf.getVersion();
     String runId = UUID.randomUUID().toString().replace("-", "");
+    long runStart = System.currentTimeMillis();
 
     // 创建运行记录
     WfWorkflowRun runRecord = new WfWorkflowRun();
     runRecord.setRunId(runId);
     runRecord.setWorkflowId(workflowId);
-    runRecord.setVersion(wf.getVersion());
+    runRecord.setVersion(runVersion);
     runRecord.setStatus("running");
     runRecord.setInputs(toJson(inputs));
     runRecord.setTriggeredBy("manual");
     runMapper.insert(runRecord);
 
-    // SSE 事件消费者
+    // SSE 事件消费者：同时记录节点执行（并行分支时多线程回调，需并发安全容器）
+    Map<String, Long> nodeStartTimes = new ConcurrentHashMap<>();
     Consumer<WorkflowEvent> eventSink =
         event -> {
           try {
             String json = objectMapper.writeValueAsString(event);
-            sseEmitter.send(SseEmitter.event().name("workflow").data(json));
-            // 记录节点运行
-            if (WorkflowEvent.NODE_SUCCEEDED.equals(event.eventType())
-                || WorkflowEvent.NODE_FAILED.equals(event.eventType())) {
-              saveNodeRun(runId, event);
+            // sseEmitter 为 null 表示无 SSE 的同步调用（AI 应用入口），仅保留执行记录
+            if (sseEmitter != null) {
+              sseEmitter.send(SseEmitter.event().name("workflow").data(json));
+            }
+            String nodeId = event.nodeId();
+            long now = System.currentTimeMillis();
+            switch (event.eventType()) {
+              case WorkflowEvent.NODE_STARTED -> nodeStartTimes.put(nodeId, now);
+              case WorkflowEvent.NODE_SKIPPED -> saveSkippedNodeRun(runId, event);
+              case WorkflowEvent.NODE_SUCCEEDED, WorkflowEvent.NODE_FAILED -> {
+                Long start = nodeStartTimes.remove(nodeId);
+                long elapsed = (start != null) ? (now - start) : 0L;
+                saveNodeRun(runId, event, elapsed, null);
+              }
+              default -> {}
             }
           } catch (Exception e) {
             log.warn("[WfWorkflowService][SSE send failed]", e);
@@ -159,22 +194,29 @@ public class WfWorkflowService {
         };
 
     try {
-      Map<String, Object> outputs = workflowEngine.execute(wf.getGraph(), runId, inputs, eventSink);
+      Map<String, Object> outputs = workflowEngine.execute(graph, runId, inputs, eventSink);
+      long elapsedMs = System.currentTimeMillis() - runStart;
       // 更新运行记录
       runRecord.setStatus("succeeded");
       runRecord.setOutputs(toJson(outputs));
+      runRecord.setElapsedMs(elapsedMs);
+      runRecord.setTotalTokens(extractTotalTokens(outputs));
       runRecord.setFinishedAt(LocalDateTime.now());
       runMapper.updateById(runRecord);
     } catch (Exception e) {
+      long elapsedMs = System.currentTimeMillis() - runStart;
       runRecord.setStatus("failed");
       runRecord.setErrorMessage(e.getMessage());
+      runRecord.setElapsedMs(elapsedMs);
       runRecord.setFinishedAt(LocalDateTime.now());
       runMapper.updateById(runRecord);
       throw e;
     } finally {
-      try {
-        sseEmitter.complete();
-      } catch (Exception ignored) {
+      if (sseEmitter != null) {
+        try {
+          sseEmitter.complete();
+        } catch (Exception ignored) {
+        }
       }
     }
 
@@ -198,9 +240,75 @@ public class WfWorkflowService {
     return runMapper.selectList(qw);
   }
 
+  // ============ 版本快照 ============
+
+  /** 最新发布版本快照（按版本号倒序取一），从未发布返回 null。 */
+  public WfWorkflowVersion latestPublishedVersion(String workflowId) {
+    return versionMapper.selectOne(
+        new LambdaQueryWrapper<WfWorkflowVersion>()
+            .eq(WfWorkflowVersion::getWorkflowId, workflowId)
+            .orderByDesc(WfWorkflowVersion::getVersion)
+            .last("LIMIT 1"));
+  }
+
+  /** 版本快照列表（按版本号倒序）。 */
+  public List<WfWorkflowVersion> listVersions(String workflowId) {
+    return versionMapper.selectList(
+        new LambdaQueryWrapper<WfWorkflowVersion>()
+            .eq(WfWorkflowVersion::getWorkflowId, workflowId)
+            .orderByDesc(WfWorkflowVersion::getVersion));
+  }
+
+  /** 版本快照详情（发布时的不可变 graph）。 */
+  public WfWorkflowVersion getVersion(String workflowId, int version) {
+    WfWorkflowVersion snapshot =
+        versionMapper.selectOne(
+            new LambdaQueryWrapper<WfWorkflowVersion>()
+                .eq(WfWorkflowVersion::getWorkflowId, workflowId)
+                .eq(WfWorkflowVersion::getVersion, version));
+    if (snapshot == null) {
+      throw new BusinessException(
+          ErrorCode.WORKFLOW_NOT_FOUND, "版本快照不存在: " + workflowId + " v" + version);
+    }
+    return snapshot;
+  }
+
+  // ============ 运行历史查询 ============
+
+  /** 全局运行记录分页列表（可选按状态过滤）。 */
+  public PageResult<WfWorkflowRun> listAllRuns(int pageNum, int pageSize, String status) {
+    LambdaQueryWrapper<WfWorkflowRun> qw =
+        new LambdaQueryWrapper<WfWorkflowRun>()
+            .eq(status != null && !status.isBlank(), WfWorkflowRun::getStatus, status)
+            .orderByDesc(WfWorkflowRun::getCreatedAt);
+    Page<WfWorkflowRun> page = runMapper.selectPage(Page.of(pageNum, pageSize), qw);
+    return PageResult.of(page.getRecords(), page.getTotal());
+  }
+
+  /** 运行记录详情（含所有节点执行记录）。 */
+  public Map<String, Object> getRunDetail(String runId) {
+    WfWorkflowRun run =
+        runMapper.selectOne(
+            new LambdaQueryWrapper<WfWorkflowRun>().eq(WfWorkflowRun::getRunId, runId));
+    if (run == null) {
+      throw new BusinessException(ErrorCode.WORKFLOW_NOT_FOUND, "运行记录不存在: " + runId);
+    }
+    List<WfNodeRun> nodes =
+        nodeRunMapper.selectList(
+            new LambdaQueryWrapper<WfNodeRun>()
+                .eq(WfNodeRun::getRunId, runId)
+                .orderByAsc(WfNodeRun::getCreatedAt));
+    Map<String, Object> result = new HashMap<>();
+    result.put("run", run);
+    result.put("nodes", nodes);
+    return result;
+  }
+
   // ============ 内部方法 ============
 
-  private void saveNodeRun(String runId, WorkflowEvent event) {
+  /** 记录单个节点执行结果（含耗时、Token、错误信息）。 */
+  private void saveNodeRun(
+      String runId, WorkflowEvent event, long elapsedMs, Map<String, Object> inputs) {
     WfNodeRun nodeRun = new WfNodeRun();
     nodeRun.setRunId(runId);
     nodeRun.setNodeId(event.nodeId());
@@ -208,14 +316,40 @@ public class WfWorkflowService {
     nodeRun.setTitle(event.title());
     nodeRun.setStatus(
         WorkflowEvent.NODE_SUCCEEDED.equals(event.eventType()) ? "succeeded" : "failed");
+    nodeRun.setElapsedMs(elapsedMs);
+    if (inputs != null) {
+      nodeRun.setInputs(toJson(inputs));
+    }
     if (event.data() != null) {
       nodeRun.setOutputs(toJson(event.data()));
+      if (event.data().containsKey("tokens")) {
+        nodeRun.setTokens(((Number) event.data().get("tokens")).longValue());
+      }
       if (event.data().containsKey("error")) {
         nodeRun.setErrorMessage(String.valueOf(event.data().get("error")));
       }
     }
     nodeRun.setFinishedAt(LocalDateTime.now());
     nodeRunMapper.insert(nodeRun);
+  }
+
+  /** 记录被跳过的节点（条件分支不可达），保证执行记录覆盖画布全部节点。 */
+  private void saveSkippedNodeRun(String runId, WorkflowEvent event) {
+    WfNodeRun nodeRun = new WfNodeRun();
+    nodeRun.setRunId(runId);
+    nodeRun.setNodeId(event.nodeId());
+    nodeRun.setNodeType(event.nodeType());
+    nodeRun.setTitle(event.title());
+    nodeRun.setStatus("skipped");
+    nodeRun.setFinishedAt(LocalDateTime.now());
+    nodeRunMapper.insert(nodeRun);
+  }
+
+  /** 从最终 outputs 中提取 totalTokens。 */
+  private Long extractTotalTokens(Map<String, Object> outputs) {
+    Object tokens = outputs.get("totalTokens");
+    if (tokens instanceof Number n) return n.longValue();
+    return 0L;
   }
 
   private String toJson(Object obj) {

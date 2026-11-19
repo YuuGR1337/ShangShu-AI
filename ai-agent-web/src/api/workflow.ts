@@ -51,6 +51,28 @@ export function deleteWorkflow(workflowId: string) {
   return del<void>(`/workflows/${workflowId}`)
 }
 
+/** 工作流发布版本快照（对齐后端 WfWorkflowVersion 实体，graph 不可变） */
+export interface WorkflowVersionItem {
+  id: number
+  workflowId: string
+  version: number
+  /** 发布时的 DSL JSON 快照 */
+  graph: string
+  publishedBy?: number | null
+  notes?: string | null
+  publishedAt: string
+}
+
+/** 版本快照列表（按版本号倒序） */
+export function listWorkflowVersions(workflowId: string) {
+  return get<WorkflowVersionItem[]>(`/workflows/${workflowId}/versions`)
+}
+
+/** 版本快照详情（发布时的不可变 graph） */
+export function getWorkflowVersion(workflowId: string, version: number) {
+  return get<WorkflowVersionItem>(`/workflows/${workflowId}/versions/${version}`)
+}
+
 /** 复制工作流 */
 export function duplicateWorkflow(workflowId: string) {
   return post<WorkflowListItem>(`/workflows/${workflowId}/duplicate`)

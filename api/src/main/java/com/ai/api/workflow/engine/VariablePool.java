@@ -1,18 +1,21 @@
 package com.ai.api.workflow.engine;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 工作流变量池。
  *
  * <p>每个节点执行后，将输出写入 VariablePool；下游节点通过 {@code ${nodeId.outputKey}} 引用上游节点输出。
- * 支持：整串变量引用（保留原始类型）、字符串内嵌变量（拼接为字符串）。
+ * 支持：整串变量引用（保留原始类型）、字符串内嵌变量（拼接为字符串）、global 作用域（{@code ${global.key}}）。 并行分支执行时多节点并发读写，底层使用并发安全容器。
  */
 public class VariablePool {
 
   /** nodeId → outputs */
-  private final Map<String, Map<String, Object>> pool = new HashMap<>();
+  private final Map<String, Map<String, Object>> pool = new ConcurrentHashMap<>();
+
+  /** 全局作用域：workflow inputs 与节点显式写入的跨节点共享变量，表达式 ${global.key} 引用 */
+  private final Map<String, Object> globalScope = new ConcurrentHashMap<>();
 
   /** 写入节点输出。 */
   public void put(String nodeId, Map<String, Object> outputs) {
@@ -72,8 +75,40 @@ public class VariablePool {
     return sb.toString();
   }
 
+  /** 写入全局作用域变量（跨节点共享，如 workflow inputs）。 */
+  public void globalPut(String key, Object value) {
+    globalScope.put(key, value);
+  }
+
+  /** 读取全局作用域变量。 */
+  public Object globalGet(String key) {
+    return globalScope.get(key);
+  }
+
+  /**
+   * 类型化变量读取：在 {@link #resolve} 基础上校验取值类型。
+   *
+   * <p>路径缺失抛 {@link VariableNotFoundException}，类型不符抛 {@link VariableTypeMismatchException}，
+   * 让节点配置错误在执行早期以明确信息暴露，而不是下游隐式空值。
+   */
+  public <T> T resolveTyped(String template, Class<T> expectedType) {
+    Object value = resolve(template);
+    if (value == null) {
+      throw new VariableNotFoundException(template);
+    }
+    if (!expectedType.isInstance(value)) {
+      throw new VariableTypeMismatchException(template, value.getClass(), expectedType);
+    }
+    return expectedType.cast(value);
+  }
+
   /** 解析变量路径 nodeId.key。 */
   private Object resolvePath(String path) {
+    if (path.equals("global") || path.startsWith("global.")) {
+      // global 是保留作用域前缀，优先于 nodeId 匹配，避免与同名节点冲突
+      int dot = path.indexOf('.');
+      return dot < 0 ? globalScope : resolveGlobalPath(path.substring(dot + 1));
+    }
     int dot = path.indexOf('.');
     if (dot < 0) {
       return pool.get(path);
@@ -83,8 +118,21 @@ public class VariablePool {
     return get(nodeId, key);
   }
 
+  /** 按点分路径逐层下钻全局作用域（值必须是 Map），支持 ${global.user.name} 形式。 */
+  private Object resolveGlobalPath(String path) {
+    Object current = globalScope;
+    for (String segment : path.split("\\.")) {
+      if (!(current instanceof Map<?, ?> map)) {
+        return null;
+      }
+      current = map.get(segment);
+    }
+    return current;
+  }
+
   /** 清空变量池。 */
   public void clear() {
     pool.clear();
+    globalScope.clear();
   }
 }

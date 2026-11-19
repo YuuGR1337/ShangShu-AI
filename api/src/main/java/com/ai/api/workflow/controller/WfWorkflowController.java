@@ -1,5 +1,6 @@
 package com.ai.api.workflow.controller;
 
+import com.ai.api.common.result.PageResult;
 import com.ai.api.common.result.Result;
 import com.ai.api.workflow.controller.dto.CreateWorkflowReq;
 import com.ai.api.workflow.controller.dto.DebugNodeReq;
@@ -7,6 +8,7 @@ import com.ai.api.workflow.controller.dto.RunWorkflowReq;
 import com.ai.api.workflow.controller.dto.UpdateWorkflowReq;
 import com.ai.api.workflow.entity.WfWorkflow;
 import com.ai.api.workflow.entity.WfWorkflowRun;
+import com.ai.api.workflow.entity.WfWorkflowVersion;
 import com.ai.api.workflow.service.WfWorkflowService;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import tools.jackson.databind.ObjectMapper;
@@ -80,10 +83,24 @@ public class WfWorkflowController {
     return Result.success(workflowService.duplicate(workflowId));
   }
 
-  /** 发布工作流。 */
+  /** 发布工作流（当前草稿固化为不可变版本快照）。 */
   @PostMapping("/{workflowId}/publish")
-  public Result<WfWorkflow> publish(@PathVariable String workflowId) {
-    return Result.success(workflowService.publish(workflowId));
+  public Result<WfWorkflow> publish(
+      @PathVariable String workflowId, @AuthenticationPrincipal Long userId) {
+    return Result.success(workflowService.publish(workflowId, userId));
+  }
+
+  /** 版本快照列表（按版本号倒序）。 */
+  @GetMapping("/{workflowId}/versions")
+  public Result<List<WfWorkflowVersion>> listVersions(@PathVariable String workflowId) {
+    return Result.success(workflowService.listVersions(workflowId));
+  }
+
+  /** 版本快照详情（发布时的不可变 graph）。 */
+  @GetMapping("/{workflowId}/versions/{version}")
+  public Result<WfWorkflowVersion> getVersion(
+      @PathVariable String workflowId, @PathVariable int version) {
+    return Result.success(workflowService.getVersion(workflowId, version));
   }
 
   /** 运行工作流（SSE 流式返回执行进度）。 */
@@ -115,9 +132,24 @@ public class WfWorkflowController {
     return Result.success(workflowService.debugNode(req.nodeType(), req.data(), req.inputs()));
   }
 
-  /** 运行历史。 */
+  /** 运行历史（指定工作流）。 */
   @GetMapping("/{workflowId}/runs")
   public Result<List<WfWorkflowRun>> listRuns(@PathVariable String workflowId) {
     return Result.success(workflowService.listRuns(workflowId));
+  }
+
+  /** 全局运行历史（分页，可选按状态过滤）。 */
+  @GetMapping("/runs")
+  public Result<PageResult<WfWorkflowRun>> listAllRuns(
+      @RequestParam(defaultValue = "1") int pageNum,
+      @RequestParam(defaultValue = "20") int pageSize,
+      @RequestParam(required = false) String status) {
+    return Result.success(workflowService.listAllRuns(pageNum, pageSize, status));
+  }
+
+  /** 运行详情（含所有节点执行记录）。 */
+  @GetMapping("/runs/{runId}")
+  public Result<Map<String, Object>> getRunDetail(@PathVariable String runId) {
+    return Result.success(workflowService.getRunDetail(runId));
   }
 }
