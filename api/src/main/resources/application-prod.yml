@@ -132,6 +132,8 @@ ai:
         - /api/v1/auth/login
         - /api/v1/auth/password/forgot
         - /api/v1/auth/password/reset
+        # 对外 API Key 端点：调用方无 JWT/Cookie（凭 appKey 路径鉴权），与 Bearer Token 同理天然免疫 CSRF
+        - /api/v1/app/**
     password-reset:
       token-ttl: PT30M
       reset-url: ${PASSWORD_RESET_URL:http://localhost/reset-password?token=}

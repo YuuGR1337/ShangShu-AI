@@ -249,6 +249,19 @@ public class AgentRuntimeService {
   }
 
   /**
+   * 同步执行链路专用：仅将 runtime 状态转为 running，不派发 MQ 任务。
+   *
+   * <p>MQ 链路的状态转移由 Consumer 调 {@code start()} 完成（转移 + 派发一体）；而 AI 应用等同步调用 （{@code
+   * AiApplicationService.runAgent}）直连 Runner 不经 Consumer，需在执行前先转 running， 否则 Runner 结束时 {@code
+   * done()} 会因 PENDING → DONE 非法转移被状态机拦截（Phase 3 AC-6 发现）。
+   */
+  public void markRunning(Long runtimeId) {
+    AgentRuntime runtime = loadRuntime(runtimeId);
+    AgentStatus current = AgentStatus.valueOf(runtime.getStatus().toUpperCase());
+    transition(runtimeId, current, AgentStatus.RUNNING);
+  }
+
+  /**
    * 判断 runtime 是否已处于终态（DONE/FAILED/CANCELLED）。
    *
    * <p>用于消费幂等跳过（add-mq-at-least-once）：at-least-once 语义下消息可能重投，终态任务无需重复执行； runtime

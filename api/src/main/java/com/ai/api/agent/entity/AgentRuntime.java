@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -40,7 +39,12 @@ public class AgentRuntime {
   /** 执行策略：COT（ReAct 文本解析）| FC（原生 Function Calling），由 StrategyFactory 选择 Runner。 */
   private String strategy;
 
-  /** AgentContext 序列化快照（chat history + observations + thought chain）。 */
-  @TableField(typeHandler = JacksonTypeHandler.class)
-  private String contextSnapshot;
+  /**
+   * AgentContext 序列化快照（chat history + observations + thought chain）。
+   *
+   * <p>列类型 JSON，但 Java 侧按 String（JSON 文本）映射：写入与解析统一由 {@code AgentContextManager}
+   * 负责（objectMapper.writeValueAsString / readValue）， 不能挂 JacksonTypeHandler —— 它会把 JSON 列的对象 token
+   * 再反序列化为 String 而报 MismatchedInputException（Phase 3 AC-6 验证发现）。
+   */
+  @TableField private String contextSnapshot;
 }
