@@ -122,7 +122,7 @@ interface MenuGroup {
   children: MenuLeaf[]
 }
 
-/** 分组菜单定义（两层结构：分组 → 页面） */
+/** 分组菜单定义（6 业务域：工作台 / AI 应用 / 应用开发 / 模型与知识 / 运行与治理 / 系统管理） */
 const menuGroups = shallowRef<MenuGroup[]>([
   {
     index: 'group-dashboard',
@@ -131,21 +131,28 @@ const menuGroups = shallowRef<MenuGroup[]>([
     children: [
       { index: '/dashboard', title: '平台仪表盘', icon: markRaw(DataBoard) },
       { index: '/chat-search', title: '全局搜索', icon: markRaw(Search) },
+      { index: '/profile', title: '个人中心', icon: markRaw(UserFilled) },
     ],
   },
   {
-    index: 'group-chat',
-    title: '对话与智能',
+    index: 'group-ai-app',
+    title: 'AI 应用',
     icon: markRaw(ChatLineSquare),
     children: [
       { index: '/chat', title: '对话聊天', icon: markRaw(ChatLineSquare) },
-      { index: '/course', title: '课程问答', icon: markRaw(ChatDotRound) },
-      { index: '/model-test', title: '模型测试', icon: markRaw(ChatDotRound) },
       { index: '/agent', title: '任务 Agent', icon: markRaw(Cpu) },
+      { index: '/course', title: '课程问答', icon: markRaw(ChatDotRound) },
       { index: '/customer-service', title: '智能客服', icon: markRaw(ChatDotRound) },
-      { index: '/data-analysis', title: '数据分析', icon: markRaw(DataAnalysis) },
-      { index: '/workflow', title: '工作流', icon: markRaw(Share) },
-      { index: '/conversation-logs', title: '对话日志', icon: markRaw(Memo) },
+    ],
+  },
+  {
+    index: 'group-ai-dev',
+    title: '应用开发',
+    icon: markRaw(EditPen),
+    children: [
+      { index: '/workflow', title: '工作流编排', icon: markRaw(Share) },
+      { index: '/prompt-templates', title: 'Prompt 管理', icon: markRaw(Document) },
+      { index: '/model-test', title: '模型测试', icon: markRaw(Cpu) },
     ],
   },
   {
@@ -153,25 +160,23 @@ const menuGroups = shallowRef<MenuGroup[]>([
     title: '模型与知识',
     icon: markRaw(Cpu),
     children: [
-      { index: '/model-configs', title: '模型配置', icon: markRaw(Setting) },
+      { index: '/model-configs', title: '模型供应商', icon: markRaw(Setting) },
       { index: '/model-routes', title: '模型路由/降级', icon: markRaw(Document) },
-      { index: '/rag', title: '知识库 RAG', icon: markRaw(DataAnalysis) },
+      { index: '/rag', title: '知识库', icon: markRaw(DataAnalysis) },
+      { index: '/rag/feedback', title: '检索反馈日志', icon: markRaw(Memo) },
     ],
   },
   {
     index: 'group-govern',
-    title: '平台治理',
+    title: '运行与治理',
     icon: markRaw(Odometer),
     children: [
-      { index: '/prompt-templates', title: 'Prompt 模板', icon: markRaw(Document) },
+      { index: '/conversation-logs', title: '对话日志', icon: markRaw(Memo) },
       { index: '/limits', title: '限额/限流', icon: markRaw(Odometer) },
       { index: '/moderation', title: '内容审查', icon: markRaw(Key) },
-      { index: '/annotations', title: '标注问答', icon: markRaw(EditPen) },
-      { index: '/agent-eval', title: 'Agent 评测', icon: markRaw(DataBoard) },
+      { index: '/annotations', title: '用户反馈', icon: markRaw(EditPen) },
+      { index: '/agent-eval', title: 'AI 应用评测', icon: markRaw(DataBoard) },
       { index: '/audit-logs', title: '操作审计', icon: markRaw(Memo) },
-      { index: '/system/ops', title: '系统运维', icon: markRaw(Monitor) },
-      { index: '/system/api-keys', title: 'API 密钥', icon: markRaw(Key) },
-      { index: '/developer/api-docs', title: 'API 调用示例', icon: markRaw(Document) },
     ],
   },
 ])

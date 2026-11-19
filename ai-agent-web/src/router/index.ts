@@ -40,6 +40,18 @@ const router = createRouter({
           meta: { title: '工作流' },
         },
         {
+          path: 'workflow/runs',
+          name: 'workflow-run-history',
+          component: () => import('@/views/workflow/RunHistoryView.vue'),
+          meta: { title: '工作流执行记录' },
+        },
+        {
+          path: 'workflow/runs/:runId',
+          name: 'workflow-run-detail',
+          component: () => import('@/views/workflow/RunDetailView.vue'),
+          meta: { title: '执行详情' },
+        },
+        {
           path: 'workflow/:id',
           name: 'workflow-editor',
           component: () => import('@/views/workflow/WorkflowEditor.vue'),
