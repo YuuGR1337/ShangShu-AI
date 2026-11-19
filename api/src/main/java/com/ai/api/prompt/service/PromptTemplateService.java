@@ -8,7 +8,9 @@ import com.ai.api.common.result.PageResult;
 import com.ai.api.prompt.dto.PromptTemplateReqDTO;
 import com.ai.api.prompt.dto.PromptTemplateRespDTO;
 import com.ai.api.prompt.entity.PromptTemplate;
+import com.ai.api.prompt.entity.PromptTemplateVersion;
 import com.ai.api.prompt.mapper.PromptTemplateMapper;
+import com.ai.api.prompt.mapper.PromptTemplateVersionMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PromptTemplateService {
 
   private final PromptTemplateMapper mapper;
+  private final PromptTemplateVersionMapper versionMapper;
   private static final ObjectMapper JSON = new ObjectMapper();
 
   public PageResult<PromptTemplateRespDTO> list(
@@ -109,6 +112,95 @@ public class PromptTemplateService {
   @Transactional
   public void delete(Long id) {
     mapper.deleteById(id);
+  }
+
+  /**
+   * 列出指定模板的所有历史版本（按 version 降序）。
+   *
+   * @param templateId prompt_template.id
+   * @return 版本快照列表（不含主表当前行，主表就是"当前版本"）
+   */
+  public List<PromptTemplateVersion> listVersions(Long templateId) {
+    LambdaQueryWrapper<PromptTemplateVersion> w = new LambdaQueryWrapper<>();
+    w.eq(PromptTemplateVersion::getTemplateId, templateId)
+        .orderByDesc(PromptTemplateVersion::getVersion);
+    return versionMapper.selectList(w);
+  }
+
+  /**
+   * 发布：将当前模板内容 snapshot 到版本历史表，然后主表 version++。
+   *
+   * @param id 模板主键
+   * @param changeLog 本次变更说明（可空）
+   * @param username 操作人
+   * @return 新的主表记录
+   */
+  @Transactional
+  public PromptTemplateRespDTO publish(Long id, String changeLog, String username) {
+    PromptTemplate t = mapper.selectById(id);
+    if (t == null) {
+      throw new BusinessException(COMMON_NOT_FOUND, "模板不存在");
+    }
+
+    // 1. snapshot 当前内容到版本历史表
+    PromptTemplateVersion snap = new PromptTemplateVersion();
+    snap.setTemplateId(t.getId());
+    snap.setVersion(t.getVersion());
+    snap.setContent(t.getContent());
+    snap.setVariables(t.getVariables());
+    snap.setModelId(t.getModelId());
+    snap.setChangeLog(changeLog);
+    snap.setCreatedBy(username);
+    snap.setCreatedAt(java.time.LocalDateTime.now());
+    versionMapper.insert(snap);
+
+    // 2. 主表 version++
+    t.setVersion(t.getVersion() + 1);
+    mapper.updateById(t);
+
+    return toResp(t);
+  }
+
+  /**
+   * 回滚：从版本历史表取出指定版本快照，将 content / variables / modelId 写回主表，version++。
+   *
+   * @param id 模板主键
+   * @param targetVersion 要回滚到的历史版本号
+   * @return 更新后的主表记录
+   */
+  @Transactional
+  public PromptTemplateRespDTO rollback(Long id, Integer targetVersion) {
+    PromptTemplate t = mapper.selectById(id);
+    if (t == null) {
+      throw new BusinessException(COMMON_NOT_FOUND, "模板不存在");
+    }
+    PromptTemplateVersion snap =
+        versionMapper.selectOne(
+            new LambdaQueryWrapper<PromptTemplateVersion>()
+                .eq(PromptTemplateVersion::getTemplateId, id)
+                .eq(PromptTemplateVersion::getVersion, targetVersion));
+    if (snap == null) {
+      throw new BusinessException(COMMON_NOT_FOUND, "目标版本不存在");
+    }
+    t.setContent(snap.getContent());
+    t.setVariables(snap.getVariables());
+    t.setModelId(snap.getModelId());
+    t.setVersion(t.getVersion() + 1);
+    mapper.updateById(t);
+
+    // 回滚操作本身也记录一条版本历史（change_log 标明来源版本号）
+    PromptTemplateVersion rollbackSnap = new PromptTemplateVersion();
+    rollbackSnap.setTemplateId(t.getId());
+    rollbackSnap.setVersion(t.getVersion());
+    rollbackSnap.setContent(t.getContent());
+    rollbackSnap.setVariables(t.getVariables());
+    rollbackSnap.setModelId(t.getModelId());
+    rollbackSnap.setChangeLog("回滚自版本 v" + targetVersion);
+    rollbackSnap.setCreatedBy("system");
+    rollbackSnap.setCreatedAt(java.time.LocalDateTime.now());
+    versionMapper.insert(rollbackSnap);
+
+    return toResp(t);
   }
 
   private PromptTemplateRespDTO toResp(PromptTemplate t) {
