@@ -43,7 +43,7 @@ com.ai.api
 依赖：MySQL 8 / Redis 7 / Elasticsearch 8 / RabbitMQ 3.13（dev 默认 localhost）
 
 ```bash
-# 可参考 d:\ai\docs\deployment.md 中的 docker-compose 启动中间件
+# 可参考 d:\ai\docs\platform\deployment.md 中的 docker-compose 启动中间件
 docker compose up -d mysql redis elasticsearch rabbitmq
 ```
 
@@ -112,7 +112,7 @@ Flyway 自动在启动时执行 `src/main/resources/db/migration/V*.sql`。
 
 ## 规范遵循
 
-本项目严格遵循 `d:\ai\docs\企业Java后端开发规范.md`：
+本项目严格遵循 `d:\ai\docs\standards\企业Java后端开发规范.md`：
 
 - **分层架构**：Controller → Service → Mapper（DAL）→ DB，单向依赖
 - **对象模型**：DO / SaveReqVO / PageReqVO / RespVO / ReqDTO / RespDTO 严格分离

@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+
+jobs:
+  backend:
+    name: 后端 spotless:check + test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root123456
+          MYSQL_DATABASE: ai_agent
+          MYSQL_USER: yunzhi
+          MYSQL_PASSWORD: yunzhi
+          TZ: Asia/Shanghai
+        ports:
+          - 3306:3306
+        options: >-
+          --character-set-server=utf8mb4
+          --collation-server=utf8mb4_unicode_ci
+          --health-cmd="mysqladmin ping -h localhost -proot123456"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis/redis-stack-server:7.4.0-v4
+        env:
+          REDIS_ARGS: "--requirepass Redis@123456 --save 60 1 --loglevel warning"
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli -a 'Redis@123456' ping | grep -q PONG"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      elasticsearch:
+        image: elasticsearch:9.0.3
+        env:
+          discovery.type: single-node
+          xpack.security.enabled: "false"
+          ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd="curl -fsS http://localhost:9200/_cluster/health || exit 1"
+          --health-interval=15s
+          --health-timeout=10s
+          --health-retries=15
+          --health-start-period=40s
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: admin
+          RABBITMQ_DEFAULT_PASS: Admin@123456
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=15s
+          --health-timeout=10s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Spotless 检查 + 测试
+        working-directory: api
+        run: mvn -B -ntp spotless:check test
+
+  web:
+    name: 前端 npm run build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ai-agent-web/package-lock.json
+
+      - name: 安装依赖
+        working-directory: ai-agent-web
+        run: npm ci
+
+      - name: 构建
+        working-directory: ai-agent-web
+        run: npm run build

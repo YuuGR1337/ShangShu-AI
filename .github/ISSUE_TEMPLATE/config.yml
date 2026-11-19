@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞报告
+    url: https://github.com/jiangjiangbozan/ShangShu-AI/security/advisories/new
+    about: 请勿公开提交安全问题，使用 GitHub 私密漏洞报告，详见 SECURITY.md
+  - name: 使用问题 / 交流讨论
+    url: https://github.com/jiangjiangbozan/ShangShu-AI/discussions
+    about: 部署求助、使用疑问、想法交流请到 Discussions
+  - name: 新人任务清单
+    url: ../docs/good-first-issues.md
+    about: 想参与贡献但不知从何入手？从这里开始

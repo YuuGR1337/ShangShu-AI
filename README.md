@@ -1,39 +1,58 @@
 <p align="center">
   <h1 align="center">尚枢 AI · ShangShu AI</h1>
-  <p align="center">开放式 AI 应用编排与 Agent 运行平台 — 让每个 AI 应用都触手可及、可编排、可运行。</p>
+  <p align="center">面向 Java / Spring Boot 团队的自托管 AI 应用平台</p>
 </p>
 
-尚枢 AI（ShangShu AI）是面向企业、开发者的**开放式 AI 应用编排与 Agent 运行平台**。它以服务端编排为核心，深度借鉴 Dify 的工作流 / DSL 设计与 Operit 的端侧智能交互体验，将大语言模型对话、知识库 RAG 检索增强、Agent ReAct 推理、可视化工作流编排、智能客服、数据分析等能力，统一收敛为一个**可配置、可复用、可运营**的中枢平台，并以 Web / Android / 小程序三端交付。
+<p align="center">
+  <a href="https://github.com">Java 21</a> ·
+  <a href="https://spring.io/projects/spring-boot">Spring Boot 4.1</a> ·
+  <a href="https://spring.io/projects/spring-ai">Spring AI</a> ·
+  <a href="https://element-plus.org">Element Plus</a> ·
+  <a href="https://vueflow.dev">Vue Flow</a>
+</p>
 
-- **尚**：崇尚、向上 —— 以 AI 能力为尚，能力指数级向上；
-- **枢**：枢纽、中枢 —— 将多模型、知识库、Agent、工作流、工具拧合为一个可调度的运行中枢。
+---
 
-> 理念：不同于简单封装大模型，尚枢把「模型 → 知识 → 编排 → 工具 → 交互」全链路做成一个可运营的 AI 中枢。
+尚枢 AI（ShangShu AI）是一个**纯 Java 技术栈**的自托管 AI 应用平台。基于 Spring AI 构建，将多模型接入、企业知识库 RAG、可视化 Agent 工作流、运行观测与安全治理整合到一套可部署、可扩展、可运营的系统中。
+
+- **Spring AI 原生**：模型接入、Embedding、VectorStore 全部走 Spring AI 抽象，不锁死供应商
+- **完整 RAG 链路**：QueryRewrite → 向量 + 关键词双路召回 → RRF 融合 → Rerank → Parent Document → 知识图谱抽取
+- **可扩展工作流引擎**：20 种节点执行器，DAG 拓扑执行，变量上下文，条件分支，SSE 实时推送
+- **工程化开箱即用**：Flyway 数据库迁移、JWT + RBAC + CSRF + XSS 安全体系、RabbitMQ 异步架构、Redis Stack 会话持久化
 
 ---
 
 ## 功能特性
 
-- **多模型聚合** — 统一抽象多供应商模型，Token 分层统计，流式输出归一化，一处配置多端复用；支持 DeepSeek / 通义 / Ollama 等。
-- **知识库 RAG** — 多路召回 + RRF 融合检索，Redis 命中缓存，长尾问句召回更精准；建设「检索 → 评价 → 反馈」运营闭环。
-- **Agent 编排** — Agent ReAct 推理引擎 + 支持条件分支 / 变量插值的 DAG 工作流引擎，RabbitMQ 异步任务派发、心跳超时检测、上下文快照断点续跑。
-- **可视化工作流** — Dify 风格的可视化编排器（节点画布 / 最小图 / 自定义边），支持 20 种节点类型。
-- **安全合规** — JWT 双 Token + CSRF Double-Submit + RBAC 权限体系，三端统一鉴权，多租户数据隔离。
-- **数据与运营** — 智能客服工作台、数据分析（NL2SQL）、SSE 流式对话、全链路 Trace 与日志审计。
-- **多端交付** — Web 管理台、Android 移动端、uni-app 小程序端一鱼多吃。
+| 模块 | 能力 |
+| --- | --- |
+| **多模型管理** | DeepSeek / 通义 / Ollama 等统一接入，动态加载，连通性测试，路由与降级 |
+| **知识库 RAG** | 文档解析切片、多路召回、RRF、Rerank、反馈闭环、Redis 命中缓存 |
+| **Agent** | ReAct / Function Calling 双策略引擎，工具注册与调用，执行轨迹追踪 |
+| **可视化工作流** | 20 种节点，Dify 风格编排器，节点画布 / 小地图 / 自定义边，SSE 运行时推送 |
+| **智能客服** | 意图识别、槽位填充、澄清模板、状态机对话管理、知识库兜底 |
+| **课程知识问答** | RAG 问答场景，QueryRewrite + 多路检索 + 引用来源 |
+| **平台安全** | JWT 双 Token、CSRF Double-Submit、XSS Filter、RBAC 权限、Jasypt 加密 |
+| **可观测** | TraceId 全链路、对话日志、LLM 调用统计、Prometheus 指标、Actuator 健康检查 |
+| **多端** | Vue 3 管理台、Android、uni-app 小程序 |
+
+### 工作流节点一览（20 种）
+
+Start · End · LLM · IfElse · Loop · Iteration · KnowledgeRetrieval · QuestionClassifier · Agent · Code · HttpRequest · Tool · HumanInput · VariableAssigner · VariableAggregator · TemplateTransform · ParameterExtractor · ListFilter · DocExtractor · Answer
 
 ---
 
 ## 技术栈
 
-| 端 | 技术 |
+| 层 | 技术 |
 | --- | --- |
-| 后端 | Java 21 · Spring Boot 4.1 · Spring AI 2.0 · Spring Security · MyBatis-Plus · Flyway |
-| 中间件 | MySQL 8 · Redis 7 (redis-stack) · Elasticsearch 9 · RabbitMQ |
-| Web 端 | Vue 3 · TypeScript · Vite · Element Plus · Pinia · Vue Flow · ECharts |
-| Android 端 | Kotlin · Jetpack Compose · Material 3 · Retrofit · kotlinx.serialization |
-| 小程序端 | uni-app · Vue 3 · TypeScript |
-| 基础设施 | Docker Compose · Nginx · GitLab CI/CD（参考） |
+| 后端 | Java 21 · Spring Boot 4.1 · Spring AI · Spring Security 7 · MyBatis-Plus 3.5 · Flyway · Redisson 4 |
+| 中间件 | MySQL 8 · Redis 7 Stack（含 RediSearch） · Elasticsearch 9 · RabbitMQ 3.13 |
+| Web | Vue 3 · TypeScript · Vite · Element Plus · Pinia · Vue Flow · ECharts |
+| 移动端 | Kotlin · Jetpack Compose · Retrofit |
+| 基础设施 | Docker Compose · Nginx · p6spy · Spotless · Checkstyle |
+
+> **版本说明**：Spring Boot 4.1 / Spring AI 当前使用里程碑版；ES 9 与 Spring Data Elasticsearch 6.0 客户端协议对齐；Redis Stack 含 RediSearch 模块（`FT._LIST` 命令是 Spring AI ChatMemory 的依赖）。
 
 ---
 
@@ -41,73 +60,136 @@
 
 ```
 ai/
-├── api/                    # 后端服务（Spring Boot + Spring AI）
+├── api/                       # 后端服务（Spring Boot + Spring AI）
 │   └── src/main/java/com/ai/api/
-│       ├── common/         # 通用层：统一响应/异常/TraceId/CORS/异步
-│       ├── data/           # 数据层：MyBatis-Plus 实体/Mapper/MQ 消费
-│       └── model/          # 模型能力层：Spring AI 封装 / 模型连通性测试
-├── ai-agent-web/           # Web 管理台（Vue 3 + Element Plus + Vue Flow）
-├── ai-agent-client/        # Android 移动端（Kotlin + Jetpack Compose）
-├── ai-agent-mini/          # 小程序端（uni-app）
-├── docker-compose.yml      # 一键部署（MySQL / Redis / ES / RabbitMQ）
-└── docs/                   # 文档（默认忽略，不随本次公开仓库上传）
+│       ├── agent/             # Agent 运行时：ReAct / FC 引擎、工具注册、执行追踪
+│       ├── workflow/          # 可视化工作流引擎：20 种 NodeExecutor、DAG 执行器
+│       ├── knowledge/         # 知识库 RAG：文档解析、切片、多路检索、RRF、Rerank
+│       ├── chat/              # 对话：SSE 流式输出、会话管理、ES 搜索索引
+│       ├── cs/                # 智能客服：意图识别、槽位填充、澄清模板、状态机
+│       ├── course/            # 课程知识问答：RAG 问答场景
+│       ├── model/             # 模型管理：动态加载、连通性测试、路由降级
+│       ├── identity/          # 身份认证：JWT、OAuth2、RBAC、API Key
+│       ├── data/              # 基础设施：MyBatis-Plus 配置、RabbitMQ、Redis
+│       ├── audit/             # 操作审计
+│       ├── common/            # 通用层：统一响应、异常、TraceId、CORS
+│       └── ...                # 完整模块见 AGENTS.md
+├── ai-agent-web/              # Web 管理台（Vue 3 + Element Plus + Vue Flow）
+├── ai-agent-client/           # Android 移动端（Kotlin + Jetpack Compose）
+├── ai-agent-mini/             # 小程序端（uni-app）
+├── docker-compose.yml         # Docker Compose（中间件 / API / Web）
+├── .env.example               # 环境变量模板（复制为 .env 使用）
+└── docs/                      # 开发日志、规范文档
 ```
 
 ---
 
 ## 快速开始
 
-### 1. 启动中间件
+### 模式 A：本地开发（推荐）
 
-依赖：MySQL 8 / Redis 7 / Elasticsearch 9 / RabbitMQ。
-
-```bash
-docker compose up -d mysql redis elasticsearch rabbitmq
-```
-
-> API Key：`DEEPSEEK_API_KEY`、`QWEN_API_KEY`、`OLLAMA_ENABLED` 等请写入根目录 `.env`（参考 `.env.example`，真实 `.env` 已忽略）。
-
-### 2. 启动后端
+依赖：Docker + JDK 21 + Node 22+ + Maven 3.9+
 
 ```bash
+# 1. 启动中间件（MySQL / Redis / ES / RabbitMQ）
+docker compose up -d
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env，至少修改 AI_AUTH_JWT_SECRET 和 JASYPT_ENCRYPTOR_PASSWORD
+
+# 3. 启动后端
 cd api
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Swagger:  http://localhost:8080/swagger-ui.html
+# 健康检查: http://localhost:8080/actuator/health
+
+# 4. 启动 Web 端
+cd ai-agent-web
+npm install
+npm run dev
+# 访问: http://localhost:5173
 ```
 
-- Swagger UI：`http://localhost:8080/swagger-ui.html`
-- 健康检查：`http://localhost:8080/actuator/health`
-- Prometheus：`http://localhost:8080/actuator/prometheus`
-
-### 3. 启动 Web 端
+### 模式 B：Docker 完整部署
 
 ```bash
-cd ai-agent-web
-npm install        # 依赖安装请在后端环境外单独执行
-npm run dev
+cp .env.example .env
+# 编辑 .env 修改所有敏感值
+
+# 一键启动（中间件 + API + Web）
+docker compose --profile full up -d --build
+
+# API:  http://localhost:8080
+# Web:  http://localhost
 ```
 
-### 4. Android / 小程序端
+> **生产部署前**务必：
+> - 修改 `AI_AUTH_JWT_SECRET` 为至少 32 字符的随机字符串
+> - 修改 `JASYPT_ENCRYPTOR_PASSWORD` 为强密码
+> - 修改 `MYSQL_ROOT_PASSWORD` 和 `REDIS_PASSWORD`
+> - 设置至少一个可用的模型 API Key（`DEEPSEEK_API_KEY` / `QWEN_API_KEY` 等）
 
-- **Android**：`ai-agent-client`，用 Android Studio 打开，对接后端地址见 `app/build.gradle.kts` 的 `API_BASE_URL`。
-- **小程序**：`ai-agent-mini`，用 HBuilderX 导入 uni-app 工程，配置后端地址后运行。
+### Docker Compose Profile 说明
+
+| 命令 | 启动的服务 |
+| --- | --- |
+| `docker compose up -d` | MySQL · Redis Stack · Elasticsearch · RabbitMQ（中间件 only） |
+| `docker compose --profile full up -d --build` | 上述中间件 + API + Web（完整部署） |
+| `docker compose up -d mysql redis elasticsearch rabbitmq ollama` | 中间件 + 本地 Ollama |
 
 ---
 
-## 文档与演进
+## 后端 API 文档
 
-- 后端 API 文档：见 `api/README.md`。
-- 架构说明与部署指引：见 `docs/architecture.md`、`docs/deployment.md`（默认未随公开仓库上传，可根据需要单独开放）。
+- Swagger UI：启动后访问 `http://localhost:8080/swagger-ui.html`
+- Actuator：`/actuator/health` · `/actuator/prometheus`
 
-本项目在设计上对标并借鉴了业界标杆：
-- **Dify**：工作流可视编排、DSL、Agent 与 RAG 的产品形态；
-- **Operit**：端侧多 Provider、本地记忆、工具系统与富交互消息渲染。
+---
 
-**Roadmap**：长期记忆 → 角色卡 → 语音交互 → 技能市场 → 端侧本地模型与自动化。
+## 文档
+
+| 文档 | 路径 |
+| --- | --- |
+| 架构说明 | `docs/platform/architecture.md` |
+| 开发日志 | `docs/dev-log/` |
+| RAG 检索评测报告 | `docs/rag-eval-report.md` |
+| 工作流节点扩展指南 | `docs/workflow-node-spi.md` |
+| 技术文章 | `docs/articles/` |
+| 后端开发约定 | `api/AGENTS.md` |
+| 前端开发约定 | `ai-agent-web/AGENTS.md` |
+| 通用开发原则 | `AGENTS.md` |
+
+## 社区
+
+- **参与贡献**：[CONTRIBUTING.md](CONTRIBUTING.md)（环境准备 · 代码规范 · PR 流程）
+- **新人任务**：[Good First Issues](docs/good-first-issues.md)（5 个标注了验收标准的入门任务）
+- **安全漏洞**：请勿公开提交，按 [SECURITY.md](SECURITY.md) 私密报告
+- **发布记录**：[Release Notes](docs/release-notes/)（当前版本 v0.1.0）
+- **问题交流**：[GitHub Discussions](https://github.com/jiangjiangbozan/ShangShu-AI/discussions)
 
 ---
 
 ## 许可证
 
-本项目当前为私有 / 内部分支管理，许可证与对外发布策略待定（如需开源，请补充 LICENSE 并调整仓库可见性）。
+Apache License 2.0
 
-© 尚枢 AI (ShangShu AI)。保留所有权利。
+---
+
+## Roadmap
+
+- [x] 多模型接入 + 动态加载 + 连通性测试
+- [x] 知识库 RAG 检索链路（多路召回 + RRF + Rerank + QueryRewrite）
+- [x] 可视化工作流引擎（20 种 NodeExecutor + DAG 执行器）
+- [x] Agent ReAct / Function Calling 双策略引擎
+- [x] JWT + RBAC + CSRF + XSS 安全体系
+- [x] AI 应用发布与 API Key 统一调用（chat / rag / agent / workflow 四类型，OpenAI 兼容协议）
+- [x] 工作流执行记录持久化 + 前端 DAG 执行视图
+- [x] RAG 检索测试页面（逐步展开链路）
+- [x] Prompt 版本管理
+- [x] 工作流版本控制 + 节点级重试 + 并行分支
+- [x] RAG 检索评测数据集与对比报告（50 题数据集 + Recall/MRR/nDCG）
+- [ ] 工作流节点使用文档（[Good First Issue](docs/good-first-issues.md) GFI-2）
+- [ ] Web 管理台深色模式（GFI-3）
+- [ ] 示例工作流模板库（GFI-4）
+- [ ] 英文版 README（GFI-5）

@@ -1,0 +1,82 @@
+name: 🐛 Bug 报告
+description: 报告一个可复现的问题
+title: "[Bug] 简要描述问题"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先搜索 [已有 Issue](../../issues?q=is%3Aissue) 避免重复提交。
+        **安全漏洞请勿在此提交**，请按 [SECURITY.md](../../SECURITY.md) 私密报告。
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: 问题模块
+      options:
+        - 后端 api（Spring Boot）
+        - Web 管理台（Vue）
+        - Android 客户端
+        - 小程序端
+        - Docker / 部署
+        - 文档
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从克隆仓库开始的最小复现路径
+      placeholder: |
+        1. docker compose up -d
+        2. 配置 .env 并启动后端
+        3. 访问 xxx 页面
+        4. 出现 xxx
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 请附错误日志、截图或录屏
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境信息
+      placeholder: |
+        - OS: [如 Windows 11 / Ubuntu 22.04]
+        - JDK: [如 21.0.9]
+        - Node: [如 22.x]
+        - Docker Compose: [如 v2.x]
+        - 版本 / commit: [如 v0.1.0 或 commit hash]
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 关键日志
+      description: 粘贴关键报错日志片段（注意脱敏 API Key、密码）
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 已搜索确认无重复 Issue
+        - label: 日志与截图已脱敏
+        - label: 使用的是最新代码（main 分支或最新 Release）

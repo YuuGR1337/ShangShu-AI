@@ -1,0 +1,30 @@
+name: Sync Gitee
+
+# Gitee 作为镜像仓库，GitHub 为主。首次启用需在仓库 Secrets 配置：
+#   GITEE_SSH_PRIVATE_KEY  — 可访问 Gitee 目标仓库的 SSH 私钥
+#   GITEE_DESTINATION_REPO — 目标仓库地址，如 git@gitee.com:yourname/ShangShu-AI.git
+# 未配置时本 workflow 自动跳过，不影响其他流水线。
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    name: 镜像同步到 Gitee
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY != '' }}
+    steps:
+      - name: 未配置密钥，跳过同步
+        if: env.HAS_KEY != 'true'
+        run: echo "GITEE_SSH_PRIVATE_KEY / GITEE_DESTINATION_REPO 未配置，跳过 Gitee 同步。"
+
+      - name: 强制镜像同步
+        if: env.HAS_KEY == 'true'
+        uses: wearerequired/git-mirror-action@v1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+        with:
+          source-repo: "git@github.com:jiangjiangbozan/ShangShu-AI.git"
+          destination-repo: ${{ secrets.GITEE_DESTINATION_REPO }}
