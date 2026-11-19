@@ -6,13 +6,25 @@
 # ---------------------------------------------------------------------
 # 专属排除：公开仓库不上传
 # 1) 外部参考项目（各自是独立 git 仓库，自行管理）
-# 2) 个人文档目录（含简历/面试题/内部开发日志/敏感笔记等，不可公开）
-# 如需公开 docs 中个别文档（如 docs/api、docs/architecture），请将下方 /docs/ 删除
-#   并改为显式忽略其中的敏感子目录（如 /docs/interview/、/docs/origin/、/docs/dev-log/）
+# 2) docs 仅公开开源所需子集（架构/部署/规范/评测报告/文章/发布说明/贡献任务），
+#    个人文档（简历/面试题/学习笔记/电子书/其他项目分析/开发日志）不上传
 # ---------------------------------------------------------------------
 /dify/
 /Operit/
-/docs/
+/docs/interview/
+/docs/raw-notes/
+/docs/study-notes/
+/docs/learning/
+/docs/books/
+/docs/projects/
+/docs/dev-log/
+/docs/kb/
+/docs/openspec/
+/docs/todo.md
+/docs/README.md
+/docs/platform/*
+!/docs/platform/architecture.md
+!/docs/platform/deployment.md
 
 # ---------------------------------------------------------------------
 # 环境变量与密钥（绝不提交）
@@ -40,6 +52,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# ---------------------------------------------------------------------
+# Python（评测脚本缓存）
+# ---------------------------------------------------------------------
+__pycache__/
+*.pyc
 
 # ---------------------------------------------------------------------
 # 后端（Java / Maven / Spring Boot）
@@ -129,3 +147,7 @@ mysql-data/
 redis-data/
 rabbitmq-data/
 es-data/
+
+agents.md
+ai-agent-web/agents.md
+api/agents.md
