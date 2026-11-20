@@ -138,11 +138,12 @@ Thumbs.db
 *.pid.lock
 
 # ---------------------------------------------------------------------
-# Docker 数据与备份（挂载目录）
+# Docker 数据与备份（挂载目录，仅仓库根目录）
+# 注意：必须锚定根目录，否则会误伤后端源码包 com/ai/api/data/
 # ---------------------------------------------------------------------
-data/
-data/backup/
-data/es-plugins/
+/data/
+/data/backup/
+/data/es-plugins/
 mysql-data/
 redis-data/
 rabbitmq-data/
