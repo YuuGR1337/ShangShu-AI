@@ -1,6 +1,7 @@
 <p align="center">
   <h1 align="center">尚枢 AI · ShangShu AI</h1>
   <p align="center">面向 Java / Spring Boot 团队的自托管 AI 应用平台</p>
+  <p align="center"><a href="README_EN.md">English</a> | 中文</p>
 </p>
 
 <p align="center">
